@@ -3,11 +3,20 @@ const path = require('path');
 
 const dbPath = path.resolve(__dirname, '../database/inventario.sqlite');
 
-const db = new sqlite3.Database(dbPath, (err) => {
+// Configurar SQLite para manejar grandes cantidades de datos
+sqlite3.Database.prototype.maxBlobSize = 20 * 1024 * 1024; // 20MB máximo para BLOBs
+
+const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
     if (err) {
         console.error('Error al conectar con la base de datos:', err);
     } else {
         console.log('Conexión exitosa con SQLite');
+        
+        // Configurar la base de datos
+        db.run('PRAGMA foreign_keys = ON');
+        db.run('PRAGMA journal_mode = WAL');
+        db.run('PRAGMA synchronous = NORMAL');
+        
         initDatabase();
     }
 });
@@ -28,8 +37,10 @@ function initDatabase() {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nombre TEXT NOT NULL,
             descripcion TEXT,
-            precio REAL NOT NULL,
-            stock INTEGER NOT NULL DEFAULT 0,
+            precio REAL NOT NULL CHECK (precio >= 0),
+            stock INTEGER NOT NULL DEFAULT 0 CHECK (stock >= 0),
+            imagen TEXT,
+            activo BOOLEAN DEFAULT 1,
             ultima_sincronizacion DATETIME,
             estado_sincronizacion TEXT DEFAULT 'sincronizado',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -52,7 +63,6 @@ function initDatabase() {
             console.error('Error al crear las tablas:', err);
         } else {
             console.log('Tablas creadas exitosamente');
-            // Crear usuario admin por defecto si no existe
             createDefaultAdmin();
         }
     });
