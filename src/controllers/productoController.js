@@ -112,16 +112,37 @@ exports.updateProducto = async (req, res) => {
     }
 
     try {
-        const resultado = await Producto.update(req.params.id, req.body);
+        // Validar y normalizar los datos de entrada
+        const { nombre, descripcion, precio, stock, imagen, activo } = req.body;
+        const productoData = {
+            nombre: nombre.trim(),
+            descripcion: descripcion ? descripcion.trim() : '',
+            precio: Number(precio),
+            stock: Number(stock),
+            imagen: imagen || '',
+            activo: activo !== undefined ? Boolean(activo) : true
+        };
+
+        // Actualizar el producto
+        const resultado = await Producto.update(req.params.id, productoData);
         if (resultado.changes === 0) {
             return res.status(404).json({ mensaje: 'Producto no encontrado' });
         }
+
+        // Obtener el producto actualizado
+        const productoActualizado = await Producto.getById(req.params.id);
+        
         res.json({
             mensaje: 'Producto actualizado exitosamente',
-            estado_sincronizacion: 'pendiente'
+            producto: productoActualizado,
+            estado_sincronizacion: 'sincronizado'
         });
     } catch (error) {
-        res.status(500).json({ mensaje: 'Error al actualizar el producto', error });
+        console.error('Error al actualizar producto:', error);
+        res.status(500).json({ 
+            mensaje: 'Error al actualizar el producto',
+            error: error.message 
+        });
     }
 };
 

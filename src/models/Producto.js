@@ -91,24 +91,61 @@ class Producto {
 
     static update(id, producto) {
         return new Promise((resolve, reject) => {
-            const { nombre, descripcion, precio, stock } = producto;
-            db.run(
-                'UPDATE productos SET nombre = ?, descripcion = ?, precio = ?, stock = ?, estado_sincronizacion = ? WHERE id = ?',
-                [nombre, descripcion, precio, stock, 'pendiente', id],
-                function(err) {
-                    if (err) reject(err);
-                    
-                    // Registrar en el log de sincronización
-                    if (this.changes > 0) {
-                        db.run(
-                            'INSERT INTO sync_log (tipo_operacion, tabla, registro_id, datos) VALUES (?, ?, ?, ?)',
-                            ['UPDATE', 'productos', id, JSON.stringify(producto)]
-                        );
-                    }
-                    
-                    resolve({ changes: this.changes });
+            try {
+                const { nombre, descripcion, precio, stock, imagen, activo } = producto;
+                
+                // Validar tipos de datos
+                if (typeof nombre !== 'string' || nombre.trim() === '') {
+                    throw new Error('El nombre es requerido y debe ser texto');
                 }
-            );
+                
+                // Convertir precio y stock a números
+                const precioNum = Number(precio);
+                const stockNum = Number(stock);
+                
+                if (isNaN(precioNum)) {
+                    throw new Error('El precio debe ser un número válido');
+                }
+                if (isNaN(stockNum)) {
+                    throw new Error('El stock debe ser un número válido');
+                }
+
+                // Preparar la consulta
+                const stmt = db.prepare(
+                    'UPDATE productos SET nombre = ?, descripcion = ?, precio = ?, stock = ?, imagen = ?, activo = ?, estado_sincronizacion = ?, ultima_sincronizacion = CURRENT_TIMESTAMP WHERE id = ?'
+                );
+
+                // Ejecutar la actualización
+                stmt.run(
+                    [nombre, descripcion, precioNum, stockNum, imagen, activo, 'sincronizado', id],
+                    function(err) {
+                        if (err) {
+                            console.error('Error en la actualización:', err);
+                            reject(err);
+                            return;
+                        }
+
+                        // Registrar en el log de sincronización si hay cambios
+                        if (this.changes > 0) {
+                            try {
+                                const stmtLog = db.prepare(
+                                    'INSERT INTO sync_log (tipo_operacion, tabla, registro_id, datos) VALUES (?, ?, ?, ?)'
+                                );
+                                stmtLog.run(['UPDATE', 'productos', id, JSON.stringify(producto)]);
+                                stmtLog.finalize();
+                            } catch (logError) {
+                                console.error('Error al registrar en el log de sincronización:', logError);
+                            }
+                        }
+
+                        stmt.finalize();
+                        resolve({ changes: this.changes });
+                    }
+                );
+            } catch (error) {
+                console.error('Error en update:', error);
+                reject(error);
+            }
         });
     }
 
