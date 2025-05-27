@@ -1,14 +1,16 @@
 const db = require('../config/database');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
-const JWT_SECRET = 'tu_secreto_super_seguro'; // En producción esto debería estar en variables de entorno
+const JWT_SECRET = process.env.JWT_SECRET || 'tu_secreto_super_seguro';
+const JWT_EXPIRATION = process.env.JWT_EXPIRATION || '24h';
+const BCRYPT_ROUNDS = parseInt(process.env.BCRYPT_ROUNDS) || 10;
 
 class Usuario {
     static async crear(usuario) {
         try {
-            const salt = await bcrypt.genSalt(10);
-            const hashedPassword = await bcrypt.hash(usuario.password, salt);
+            const hashedPassword = await bcrypt.hash(usuario.password, BCRYPT_ROUNDS);
 
             return new Promise((resolve, reject) => {
                 db.run(
@@ -49,7 +51,7 @@ class Usuario {
                 const token = jwt.sign(
                     { id: usuario.id, email: usuario.email, rol: usuario.rol },
                     JWT_SECRET,
-                    { expiresIn: '24h' }
+                    { expiresIn: JWT_EXPIRATION }
                 );
 
                 resolve({

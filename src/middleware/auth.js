@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken');
+require('dotenv').config();
 
-const JWT_SECRET = 'tu_secreto_super_seguro'; // Debe coincidir con el secreto en Usuario.js
+const JWT_SECRET = process.env.JWT_SECRET || 'tu_secreto_super_seguro';
 
 module.exports = (req, res, next) => {
     // Obtener el token del header

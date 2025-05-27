@@ -1,16 +1,20 @@
 const sqlite3 = require('sqlite3').verbose();
 const path = require('path');
+require('dotenv').config();
 
-const dbPath = path.resolve(__dirname, '../database/inventario.sqlite');
+const dbPath = process.env.DB_PATH 
+    ? path.resolve(__dirname, '../../', process.env.DB_PATH)
+    : path.resolve(__dirname, '../database/inventario.sqlite');
 
 // Configurar SQLite para manejar grandes cantidades de datos
-sqlite3.Database.prototype.maxBlobSize = 20 * 1024 * 1024; // 20MB máximo para BLOBs
+sqlite3.Database.prototype.maxBlobSize = parseInt(process.env.MAX_BLOB_SIZE) || 20 * 1024 * 1024; // 20MB por defecto
 
 const db = new sqlite3.Database(dbPath, sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
     if (err) {
         console.error('Error al conectar con la base de datos:', err);
     } else {
         console.log('Conexión exitosa con SQLite');
+        console.log('Ruta de la base de datos:', dbPath);
         
         // Configurar la base de datos
         db.run('PRAGMA foreign_keys = ON');
@@ -71,13 +75,15 @@ function initDatabase() {
 function createDefaultAdmin() {
     const bcrypt = require('bcryptjs');
     const defaultAdmin = {
-        nombre: 'Administrador',
-        email: 'admin@example.com',
-        password: 'admin123',
+        nombre: process.env.DEFAULT_ADMIN_NAME || 'Administrador',
+        email: process.env.DEFAULT_ADMIN_EMAIL || 'admin@example.com',
+        password: process.env.DEFAULT_ADMIN_PASSWORD || 'admin123',
         rol: 'admin'
     };
 
-    bcrypt.hash(defaultAdmin.password, 10, (err, hashedPassword) => {
+    const saltRounds = parseInt(process.env.BCRYPT_ROUNDS) || 10;
+
+    bcrypt.hash(defaultAdmin.password, saltRounds, (err, hashedPassword) => {
         if (err) {
             console.error('Error al hashear la contraseña:', err);
             return;
@@ -105,9 +111,10 @@ function createDefaultAdmin() {
                         console.error('Error al crear usuario admin:', err);
                     } else {
                         console.log('Usuario admin creado exitosamente');
-                        console.log('Credenciales por defecto:');
                         console.log('Email:', defaultAdmin.email);
-                        console.log('Contraseña:', defaultAdmin.password);
+                        if (process.env.NODE_ENV === 'development') {
+                            console.log('Contraseña:', defaultAdmin.password);
+                        }
                     }
                 });
             }

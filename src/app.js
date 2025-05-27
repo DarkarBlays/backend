@@ -1,17 +1,24 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const morgan = require('morgan');
 
 // Configuración del puerto
-let PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 const app = express();
 
+// Configuración de CORS
+const corsOptions = {
+    origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    optionsSuccessStatus: 200
+};
+
 // Middleware
-app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
-app.use(morgan('dev')); // Logging de solicitudes HTTP
+app.use(cors(corsOptions));
+app.use(express.json({ limit: process.env.UPLOAD_LIMIT || '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: process.env.UPLOAD_LIMIT || '50mb' }));
+app.use(morgan(process.env.LOG_LEVEL || 'dev')); // Logging de solicitudes HTTP
 
 // Log de todas las rutas
 app.use((req, res, next) => {
@@ -30,7 +37,8 @@ app.use('/api/productos', productosRoutes);
 app.get('/api/estado', (req, res) => {
     res.json({
         estado: 'online',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        environment: process.env.NODE_ENV || 'development'
     });
 });
 
@@ -56,6 +64,7 @@ const startServer = (port) => {
     try {
         app.listen(port, () => {
             console.log(`Servidor corriendo en el puerto ${port}`);
+            console.log(`Ambiente: ${process.env.NODE_ENV || 'development'}`);
             console.log('Rutas disponibles:');
             console.log('- POST /api/usuarios/registro');
             console.log('- POST /api/usuarios/login');
